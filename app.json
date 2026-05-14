@@ -12,6 +12,9 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.braetspils.app",
+      "versionCode": 1,
+      "permissions": ["CAMERA"],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
