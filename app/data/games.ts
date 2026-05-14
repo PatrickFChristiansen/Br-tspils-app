@@ -18,9 +18,9 @@ export type Game = {
 export const DATA_VERSION = '1.0.0';
 
 export const STORAGE_KEYS = {
-  lastGame: 'brætspils:lastGame',
-  customGames: 'brætspils:customGames',
-  dataVersion: 'brætspils:dataVersion',
+  lastGame: 'braetspils_lastGame',
+  customGames: 'braetspils_customGames',
+  dataVersion: 'braetspils_dataVersion',
 };
 
 const baseCardsMagic: Card[] = [

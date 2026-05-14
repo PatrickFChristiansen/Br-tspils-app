@@ -1,4 +1,5 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+﻿import { useIsFocused } from '@react-navigation/native';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -31,7 +32,8 @@ import { loadJSON, saveJSON } from '../utils/storage';
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
-  const tintColor = Colors[colorScheme ?? 'light'].tint;
+  const theme = Colors[colorScheme ?? 'light'];
+  const tintColor = theme.tint;
 
   const [games, setGames] = useState<Game[]>(BASE_GAMES);
   const [loading, setLoading] = useState(true);
@@ -40,8 +42,13 @@ export default function HomeScreen() {
   const [cardQuery, setCardQuery] = useState('');
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>('Offline klar. Vælg et spil for at komme i gang.');
+  const isFocused = useIsFocused();
 
   useEffect(() => {
+    if (!isFocused) {
+      return;
+    }
+
     async function loadState() {
       const customGames = (await loadJSON<Game[]>(STORAGE_KEYS.customGames)) ?? [];
       const merged = mergeGames(BASE_GAMES, customGames);
@@ -57,7 +64,7 @@ export default function HomeScreen() {
     }
 
     loadState();
-  }, []);
+  }, [isFocused]);
 
   const selectedGame = useMemo(
     () => games.find((game) => game.id === selectedGameId) ?? null,
@@ -107,7 +114,7 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <ThemedView style={styles.loadingContainer}>
+      <ThemedView style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={tintColor} />
         <ThemedText type="subtitle" style={styles.loadingText}>
           Indlæser kortdata...
@@ -117,7 +124,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -136,9 +143,9 @@ export default function HomeScreen() {
               1. Vælg spil
             </ThemedText>
             <TextInput
-              style={[styles.input, { borderColor: tintColor }]}
+              style={[styles.input, { backgroundColor: theme.cardBackground, borderColor: theme.border, color: theme.text }]}
               placeholder="Søg efter spil"
-              placeholderTextColor={Colors[colorScheme ?? 'light'].icon}
+              placeholderTextColor={theme.icon}
               value={gameQuery}
               onChangeText={setGameQuery}
               accessibilityLabel="Søg efter spil"
@@ -148,7 +155,11 @@ export default function HomeScreen() {
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={[styles.tile, item.id === selectedGameId ? styles.selectedTile : undefined]}
+                  style={[
+                    styles.tile,
+                    { backgroundColor: theme.cardBackground, borderColor: theme.border },
+                    item.id === selectedGameId && { borderColor: theme.tint, backgroundColor: theme.selectedBackground },
+                  ]}
                   onPress={() => handleSelectGame(item.id)}
                   accessibilityRole="button"
                 >
@@ -172,9 +183,9 @@ export default function HomeScreen() {
                 <ThemedText style={styles.smallCaption}>Version {selectedGame.version}</ThemedText>
               </View>
               <TextInput
-                style={[styles.input, { borderColor: tintColor }]}
+                style={[styles.input, { backgroundColor: theme.cardBackground, borderColor: theme.border, color: theme.text }]}
                 placeholder="Skriv kortnavn eller alias"
-                placeholderTextColor={Colors[colorScheme ?? 'light'].icon}
+                placeholderTextColor={theme.icon}
                 value={cardQuery}
                 onChangeText={handleCardSearchChange}
                 accessibilityLabel="Søg efter kort"
@@ -183,7 +194,7 @@ export default function HomeScreen() {
                 data={filteredCards}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
-                  <TouchableOpacity style={styles.tile} onPress={() => handleSelectCard(item)}>
+                  <TouchableOpacity style={[styles.tile, { backgroundColor: theme.cardBackground, borderColor: theme.border }]} onPress={() => handleSelectCard(item)}>
                     <ThemedText type="defaultSemiBold">{item.title}</ThemedText>
                     <ThemedText style={styles.subtitleText}>{item.aliases.join(', ')}</ThemedText>
                   </TouchableOpacity>
@@ -201,7 +212,7 @@ export default function HomeScreen() {
               <ThemedText type="subtitle" style={styles.sectionTitle}>
                 3. Kortdetaljer
               </ThemedText>
-              <View style={styles.detailCard}>
+              <View style={[styles.detailCard, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
                 <ThemedText type="title">{selectedCard.title}</ThemedText>
                 <ThemedText style={styles.detailLabel}>Original tekst</ThemedText>
                 <ThemedText style={styles.detailText}>{selectedCard.originalText}</ThemedText>
@@ -213,7 +224,7 @@ export default function HomeScreen() {
             </View>
           ) : null}
 
-          <View style={styles.statusBar}>
+          <View style={[styles.statusBar, { backgroundColor: theme.statusBackground }]}> 
             <ThemedText style={styles.statusText}>{statusMessage}</ThemedText>
             <ThemedText style={styles.smallCaption}>Data version: {DATA_VERSION} · Offline</ThemedText>
           </View>
@@ -229,7 +240,6 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-    backgroundColor: '#f8f9fb',
   },
   container: {
     padding: 16,
@@ -239,7 +249,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8f9fb',
   },
   loadingText: {
     marginTop: 16,
@@ -262,57 +271,43 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     fontSize: 16,
-    backgroundColor: '#ffffff',
   },
   tile: {
     padding: 16,
     borderRadius: 16,
-    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#e3e7ea',
     marginBottom: 10,
   },
   selectedTile: {
-    borderColor: '#0a7ea4',
-    backgroundColor: '#eef7fb',
   },
   subtitleText: {
     marginTop: 6,
-    color: '#656f7a',
   },
   emptyText: {
     fontSize: 16,
-    color: '#7a7a7a',
   },
   detailCard: {
-    backgroundColor: '#ffffff',
     padding: 18,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#e3e7ea',
     gap: 10,
   },
   detailLabel: {
     marginTop: 12,
-    color: '#0a7ea4',
     fontWeight: '600',
   },
   detailText: {
     marginTop: 6,
-    color: '#1b1f23',
     lineHeight: 22,
   },
   statusBar: {
     marginTop: 10,
     padding: 14,
     borderRadius: 16,
-    backgroundColor: '#eef6fb',
   },
   statusText: {
-    color: '#0b5070',
   },
   smallCaption: {
-    color: '#787e85',
     fontSize: 14,
   },
   cardHeaderRow: {

@@ -28,7 +28,8 @@ import { loadJSON, saveJSON } from '../utils/storage';
 
 export default function ExploreScreen() {
   const colorScheme = useColorScheme();
-  const tintColor = Colors[colorScheme ?? 'light'].tint;
+  const theme = Colors[colorScheme ?? 'light'];
+  const tintColor = theme.tint;
 
   const [customGames, setCustomGames] = useState<Game[]>([]);
   const [games, setGames] = useState<Game[]>(BASE_GAMES);
@@ -48,6 +49,7 @@ export default function ExploreScreen() {
   const [scanResult, setScanResult] = useState<{ game: Game; card: Card }[]>([]);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
   const [cameraType, setCameraType] = useState<'back' | 'front'>('back');
   const cameraRef = useRef<CameraView | null>(null);
 
@@ -231,7 +233,8 @@ export default function ExploreScreen() {
 
   const tryRecognizeTextFromImage = async (uri: string): Promise<string | undefined> => {
     try {
-      const textModule = await import('expo-text-recognition');
+      const moduleName = 'expo' + '-text-recognition';
+      const textModule = await import(moduleName);
       const recognize = textModule?.recognizeTextAsync ?? textModule?.default?.recognizeTextAsync;
       if (typeof recognize !== 'function') {
         return undefined;
@@ -267,10 +270,16 @@ export default function ExploreScreen() {
       return;
     }
 
+    if (!cameraReady) {
+      Alert.alert('Kameraet er ikke klar endnu', 'Vent venligst et øjeblik, indtil kameraet er klar.');
+      return;
+    }
+
     try {
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.5, skipProcessing: true });
       setPhotoUri(photo.uri);
       setIsCameraOpen(false);
+      setCameraReady(false);
 
       const detectedText = await tryRecognizeTextFromImage(photo.uri);
       if (detectedText) {
@@ -331,7 +340,11 @@ export default function ExploreScreen() {
               <TouchableOpacity
                 key={game.id}
                 onPress={() => setScanGameId(game.id)}
-                style={[styles.tile, scanGameId === game.id ? styles.selectedTile : undefined]}
+                style={[
+                  styles.tile,
+                  { backgroundColor: theme.cardBackground, borderColor: theme.border },
+                  scanGameId === game.id && { borderColor: theme.tint, backgroundColor: theme.selectedBackground },
+                ]}
               >
                 <ThemedText>{game.title}</ThemedText>
               </TouchableOpacity>
@@ -345,6 +358,8 @@ export default function ExploreScreen() {
                     ref={cameraRef}
                     style={styles.cameraPreview}
                     facing={cameraType}
+                    active={isCameraOpen}
+                    onCameraReady={() => setCameraReady(true)}
                   />
                   <View style={styles.cameraControls}>
                     <TouchableOpacity style={[styles.smallButton, { backgroundColor: tintColor }]} onPress={handleCapturePhoto}>
@@ -353,13 +368,22 @@ export default function ExploreScreen() {
                     <TouchableOpacity style={[styles.smallButton, { backgroundColor: tintColor }]} onPress={toggleCamera}>
                       <ThemedText style={styles.buttonText}>Skift kamera</ThemedText>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[styles.smallButton, { backgroundColor: '#666' }]} onPress={() => setIsCameraOpen(false)}>
+                    <TouchableOpacity style={[styles.smallButton, { backgroundColor: '#666' }]} onPress={() => {
+                      setIsCameraOpen(false);
+                      setCameraReady(false);
+                    }}>
                       <ThemedText style={styles.buttonText}>Luk kamera</ThemedText>
                     </TouchableOpacity>
                   </View>
                 </View>
               ) : (
-                <TouchableOpacity style={[styles.button, { backgroundColor: tintColor }]} onPress={() => setIsCameraOpen(true)}>
+                <TouchableOpacity
+                  style={[styles.button, { backgroundColor: tintColor }]}
+                  onPress={() => {
+                    setCameraReady(false);
+                    setIsCameraOpen(true);
+                  }}
+                >
                   <ThemedText style={styles.buttonText}>Åbn kamera</ThemedText>
                 </TouchableOpacity>
               )}
@@ -377,9 +401,9 @@ export default function ExploreScreen() {
           ) : null}
 
           <TextInput
-            style={[styles.input, { borderColor: tintColor }]}
+            style={[styles.input, { backgroundColor: theme.cardBackground, borderColor: theme.border, color: theme.text }]}
             placeholder="Ret korttitlen her efter scanning"
-            placeholderTextColor={Colors[colorScheme ?? 'light'].icon}
+            placeholderTextColor={theme.icon}
             value={scanText}
             onChangeText={setScanText}
           />
@@ -401,16 +425,16 @@ export default function ExploreScreen() {
             Tilføj nyt spil
           </ThemedText>
           <TextInput
-            style={[styles.input, { borderColor: tintColor }]}
+            style={[styles.input, { backgroundColor: theme.cardBackground, borderColor: theme.border, color: theme.text }]}
             placeholder="Spilnavn"
-            placeholderTextColor={Colors[colorScheme ?? 'light'].icon}
+            placeholderTextColor={theme.icon}
             value={newGameTitle}
             onChangeText={setNewGameTitle}
           />
           <TextInput
-            style={[styles.input, { borderColor: tintColor }]}
+            style={[styles.input, { backgroundColor: theme.cardBackground, borderColor: theme.border, color: theme.text }]}
             placeholder="Beskrivelse"
-            placeholderTextColor={Colors[colorScheme ?? 'light'].icon}
+            placeholderTextColor={theme.icon}
             value={newGameSubtitle}
             onChangeText={setNewGameSubtitle}
           />
@@ -425,42 +449,46 @@ export default function ExploreScreen() {
           </ThemedText>
           <ThemedText style={styles.subtitleText}>Vælg spil</ThemedText>
           {gameOptions.map((game) => (
-            <TouchableOpacity key={game.id} style={[styles.tile, newCardGameId === game.id ? styles.selectedTile : undefined]} onPress={() => setNewCardGameId(game.id)}>
+            <TouchableOpacity key={game.id} style={[
+              styles.tile,
+              { backgroundColor: theme.cardBackground, borderColor: theme.border },
+              newCardGameId === game.id && { borderColor: theme.tint, backgroundColor: theme.selectedBackground },
+            ]} onPress={() => setNewCardGameId(game.id)}>
               <ThemedText>{game.title}</ThemedText>
             </TouchableOpacity>
           ))}
           <TextInput
-            style={[styles.input, { borderColor: tintColor }]}
+            style={[styles.input, { backgroundColor: theme.cardBackground, borderColor: theme.border, color: theme.text }]}
             placeholder="Kortnavn"
-            placeholderTextColor={Colors[colorScheme ?? 'light'].icon}
+            placeholderTextColor={theme.icon}
             value={newCardTitle}
             onChangeText={setNewCardTitle}
           />
           <TextInput
-            style={[styles.input, { borderColor: tintColor }]}
+            style={[styles.input, { backgroundColor: theme.cardBackground, borderColor: theme.border, color: theme.text }]}
             placeholder="Aliases (komma-separeret)"
-            placeholderTextColor={Colors[colorScheme ?? 'light'].icon}
+            placeholderTextColor={theme.icon}
             value={newCardAliases}
             onChangeText={setNewCardAliases}
           />
           <TextInput
-            style={[styles.input, { borderColor: tintColor }]}
+            style={[styles.input, { backgroundColor: theme.cardBackground, borderColor: theme.border, color: theme.text }]}
             placeholder="Original tekst"
-            placeholderTextColor={Colors[colorScheme ?? 'light'].icon}
+            placeholderTextColor={theme.icon}
             value={newCardOriginal}
             onChangeText={setNewCardOriginal}
           />
           <TextInput
-            style={[styles.input, { borderColor: tintColor }]}
+            style={[styles.input, { backgroundColor: theme.cardBackground, borderColor: theme.border, color: theme.text }]}
             placeholder="Dansk oversættelse"
-            placeholderTextColor={Colors[colorScheme ?? 'light'].icon}
+            placeholderTextColor={theme.icon}
             value={newCardTranslation}
             onChangeText={setNewCardTranslation}
           />
           <TextInput
-            style={[styles.input, { borderColor: tintColor }]}
+            style={[styles.input, { backgroundColor: theme.cardBackground, borderColor: theme.border, color: theme.text }]}
             placeholder="Forklaring"
-            placeholderTextColor={Colors[colorScheme ?? 'light'].icon}
+            placeholderTextColor={theme.icon}
             value={newCardExplanation}
             onChangeText={setNewCardExplanation}
           />
@@ -475,7 +503,11 @@ export default function ExploreScreen() {
           </ThemedText>
           <ThemedText style={styles.subtitleText}>Vælg spil</ThemedText>
           {gameOptions.map((game) => (
-            <TouchableOpacity key={game.id} style={[styles.tile, editGameId === game.id ? styles.selectedTile : undefined]} onPress={() => { setEditGameId(game.id); setEditCardId(''); }}>
+            <TouchableOpacity key={game.id} style={[
+              styles.tile,
+              { backgroundColor: theme.cardBackground, borderColor: theme.border },
+              editGameId === game.id && { borderColor: theme.tint, backgroundColor: theme.selectedBackground },
+            ]} onPress={() => { setEditGameId(game.id); setEditCardId(''); }}>
               <ThemedText>{game.title}</ThemedText>
             </TouchableOpacity>
           ))}
@@ -484,7 +516,11 @@ export default function ExploreScreen() {
             <>
               <ThemedText style={styles.subtitleText}>Vælg kort</ThemedText>
               {editGame.cards.map((card) => (
-                <TouchableOpacity key={card.id} style={[styles.tile, editCardId === card.id ? styles.selectedTile : undefined]} onPress={() => setEditCardId(card.id)}>
+                <TouchableOpacity key={card.id} style={[
+                  styles.tile,
+                  { backgroundColor: theme.cardBackground, borderColor: theme.border },
+                  editCardId === card.id && { borderColor: theme.tint, backgroundColor: theme.selectedBackground },
+                ]} onPress={() => setEditCardId(card.id)}>
                   <ThemedText>{card.title}</ThemedText>
                 </TouchableOpacity>
               ))}
@@ -494,9 +530,9 @@ export default function ExploreScreen() {
           {editCard ? (
             <>
               <TextInput
-                style={[styles.input, { borderColor: tintColor }]}
+                style={[styles.input, { backgroundColor: theme.cardBackground, borderColor: theme.border, color: theme.text }]}
                 placeholder="Ny oversættelse"
-                placeholderTextColor={Colors[colorScheme ?? 'light'].icon}
+                placeholderTextColor={theme.icon}
                 value={editTranslation}
                 onChangeText={setEditTranslation}
               />
@@ -514,7 +550,6 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f8f9fb',
   },
   container: {
     padding: 16,
@@ -538,14 +573,11 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     fontSize: 16,
-    backgroundColor: '#ffffff',
   },
   tile: {
     padding: 16,
     borderRadius: 16,
-    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#e3e7ea',
     marginBottom: 10,
   },
   cameraCard: {
@@ -589,8 +621,6 @@ const styles = StyleSheet.create({
     height: 200,
   },
   selectedTile: {
-    borderColor: '#0a7ea4',
-    backgroundColor: '#eef7fb',
   },
   button: {
     alignItems: 'center',
@@ -604,14 +634,11 @@ const styles = StyleSheet.create({
   },
   subtitleText: {
     marginBottom: 6,
-    color: '#656f7a',
   },
   detailText: {
-    color: '#1b1f23',
     marginTop: 6,
   },
   smallCaption: {
-    color: '#787e85',
     fontSize: 14,
   },
 });
